@@ -15,7 +15,9 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.DataPoint;
+import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataSet;
+import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
 import com.google.android.gms.fitness.request.DataReadRequest;
@@ -45,8 +47,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Headers;
@@ -102,9 +106,17 @@ public class DashboardFragment extends Fragment {
         }
         long startTime = public_func.timestamp_today();
         long endTime = public_func.timestamp_now();
-        int original_step = User.load_google_fit_step_num(getActivity(),startTime);
+        // 使用 estimated_steps 資料來源（與 Google Fit App 及 Pikmin Bloom 一致的來源）
+        // 若用原始 TYPE_STEP_COUNT_DELTA aggregate 會遭漏算法處理後的預估步數
+        DataSource estimatedStepsDataSource = new DataSource.Builder()
+                .setAppPackageName("com.google.android.gms")
+                .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
+                .setType(DataSource.TYPE_DERIVED)
+                .setStreamName("estimated_steps")
+                .build();
         DataReadRequest readRequest = new DataReadRequest.Builder()
-                .read(DataType.TYPE_STEP_COUNT_DELTA)
+                .aggregate(estimatedStepsDataSource, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                .bucketByTime(1, TimeUnit.DAYS)
                 .setTimeRange(startTime, endTime, TimeUnit.SECONDS)
                 .build();
         Fitness.getHistoryClient(getActivity(), GoogleSignIn.getLastSignedInAccount(getActivity()))
@@ -112,31 +124,26 @@ public class DashboardFragment extends Fragment {
                 .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
                     public void onSuccess(DataReadResponse dataReadResponse) {
                         int steps = 0;
-                        for (DataSet dataSet : dataReadResponse.getDataSets()) {//這是一個循環，它會遍歷dataReadResult中的所有DataSet。每個DataSet是一組有關特定類型活動（例如步行或跑步）的資料。
-                            for (DataPoint dp : dataSet.getDataPoints()) {//對於每一個DataSet，。每一個DataPoint代表在一個特定時間段內的資料。
-                                for (Field field : dp.getDataType().getFields()) {//這個循環遍歷了DataPoint內的所有Field。Field描述了這個DataPoint內的特定類型的數據，例如步數。
-                                    if (field.equals(Field.FIELD_STEPS)) {//這是一個條件判斷，用於檢查當前的Field是否是步數。
-                                        steps += dp.getValue(field).asInt();//如果上述的判斷為真，那麼這行代碼會從DataPoint中提取步數值，並將其存儲在steps變數中。
-                                        // 現在，'steps' 變數包含了這個 DataPoint 的步數數據。
+                        for (Bucket bucket : dataReadResponse.getBuckets()) {
+                            for (DataSet dataSet : bucket.getDataSets()) {
+                                for (DataPoint dp : dataSet.getDataPoints()) {
+                                    for (Field field : dp.getDataType().getFields()) {
+                                        if (field.equals(Field.FIELD_STEPS)) {
+                                            steps += dp.getValue(field).asInt();
+                                        }
                                     }
                                 }
                             }
-                            if(steps>original_step) {
-                                User.edit_google_fit_step_num(getActivity(), steps, startTime);
-                                int finalSteps = steps-original_step;
-                                getActivity().runOnUiThread(new Runnable() {
-                                    public void run() {
-                                        Toast.makeText(getActivity(),String.format("add steps: %d", finalSteps), Toast.LENGTH_SHORT).show();
-                                        TextView step_value=root.findViewById(R.id.step_value);
-                                        step_value.setText(String.valueOf(User.load_google_fit_step_num(getActivity(),public_func.timestamp_today())));
-                                    }
-                                });
-
-
-                            }
                         }
+                        final int finalSteps = steps;
+                        User.edit_google_fit_step_num(getActivity(), finalSteps, startTime);
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                TextView step_value = root.findViewById(R.id.step_value);
+                                step_value.setText(String.valueOf(finalSteps));
+                            }
+                        });
                     }
-
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     public void onFailure(@NonNull Exception e) {
