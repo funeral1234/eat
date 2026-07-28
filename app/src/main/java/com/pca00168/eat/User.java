@@ -113,7 +113,9 @@ public class User {
         );
         kcal_sports items = new kcal_sports();
         while(cursor.moveToNext()) {
-            kcal_sport item= kcal_sports.sport_list().get(cursor.getShort(cursor.getColumnIndexOrThrow("sporttype")));
+            // 不直接修改靜態 sport_list() 原型，複製出新物件再賦值
+            kcal_sport template = kcal_sports.sport_list().get(cursor.getShort(cursor.getColumnIndexOrThrow("sporttype")));
+            kcal_sport item = new kcal_sport(template.type, template.kcal, template.name, template.icon_resource_id);
             item.time=cursor.getInt(cursor.getColumnIndexOrThrow("time"));
             item.kcal = cursor.getInt(cursor.getColumnIndexOrThrow("kcal"));
             items.add(item);
@@ -123,7 +125,7 @@ public class User {
     }
     public static int load_google_fit_step_num(Context context,long today_timestamp){
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
-        SQLiteDatabase s = db.getReadableDatabase();
+        SQLiteDatabase s = db.getWritableDatabase();
         Cursor cursor = s.query(
                 "google_fit_step",   // The table to query
                 null,             // The array of columns to return (pass null to get all)
@@ -139,13 +141,13 @@ public class User {
             values.put("time",today_timestamp);
             values.put("num",0);
             s.insert("google_fit_step", null, values);
-            s.close();
         } else {
             while (cursor.moveToNext()) {
                 num = cursor.getInt(cursor.getColumnIndexOrThrow("num"));
             }
         }
         cursor.close();
+        s.close();
         return num;
     }
     public static clothings load_clothings(Context context,short main_type){//-1:全部

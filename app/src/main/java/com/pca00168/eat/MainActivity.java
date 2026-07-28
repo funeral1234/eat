@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
                 .requestScopes(new Scope(CONTACTS_SCOPE8))
                 .build();
         mGoogleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions);
-        if(public_func.readData(this,"logged")!=""){
+        if(!public_func.readData(this,"logged").isEmpty()){
             google_click(null);
         }
     }

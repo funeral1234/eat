@@ -45,7 +45,7 @@ public class weekly_report extends AppCompatActivity {
     }
     private void load_output_data(){
         LinearLayout output_kcal_table = findViewById(R.id.output_kcal_table);
-        for (short type=0;type<=kcal_sports.sport_list().size();type++) {
+        for (short type=0;type<kcal_sports.sport_list().size();type++) {
             kcal_sports sports=User.load_kcal_output(this,type,public_func.timestamp_a_week_ago(),public_func.timestamp_now());
             if(sports.size()==0)continue;
             LayoutInflater layoutInflater = LayoutInflater.from(this);

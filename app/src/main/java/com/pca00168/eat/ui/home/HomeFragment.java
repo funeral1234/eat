@@ -47,8 +47,9 @@ public class HomeFragment extends Fragment {
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {   }
             
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                confirm_add_btn.setBackground(getResources().getDrawable( count>0 ? R.drawable.conform_add_orange : R.drawable.conform_add_gray));
-                confirm_add_btn.setClickable(count>0);
+                boolean clickable = count>0 && sport!=null;
+                confirm_add_btn.setBackground(getResources().getDrawable(clickable ? R.drawable.conform_add_orange : R.drawable.conform_add_gray));
+                confirm_add_btn.setClickable(clickable);
             }
             
             public void afterTextChanged(Editable editable) {  }

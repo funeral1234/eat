@@ -162,7 +162,7 @@ public class DashboardFragment extends Fragment {
     }
     public void onResume() {
         super.onResume();
-        today_minute=Calendar.getInstance().get(Calendar.HOUR_OF_DAY)*60+Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+        today_minute=Calendar.getInstance().get(Calendar.HOUR_OF_DAY)*60+Calendar.getInstance().get(Calendar.MINUTE);
         set_bg();
         load_data();
         /*
@@ -223,7 +223,7 @@ public class DashboardFragment extends Fragment {
         step_value.setText(String.valueOf(User.load_google_fit_step_num(getActivity(),public_func.timestamp_today())));
         ConstraintLayout layout=root.findViewById(R.id.kcal_toast_view);
         String delta_kcal=public_func.readData(getActivity(),"delta_kcal");
-        if(delta_kcal!=""){
+        if(!delta_kcal.isEmpty()){
             TextView kcal=root.findViewById(R.id.kcal_toast_delta);
             kcal.setText(Integer.parseInt(delta_kcal) <0?delta_kcal.substring(1):delta_kcal);
             TextView add_minus=root.findViewById(R.id.kcal_toast_text);
