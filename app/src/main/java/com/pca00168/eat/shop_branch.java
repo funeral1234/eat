@@ -14,7 +14,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;
 import okhttp3.Headers;
-public class shop_branch extends AppCompatActivity {
+public class shop_branch extends AppCompatActivity implements public_func.WebAPICallback {
     private JSONArray list;
     private LinearLayout branch_solution;
     private ProgressBar progressBar;
@@ -28,28 +28,8 @@ public class shop_branch extends AppCompatActivity {
         progressBar=findViewById(R.id.progressBar);
         public_func.http_webapi(
                 com.pca00168.eat.public_func.host+"branch-solution.json",Headers.of(),
-                new public_func.WebAPICallback(){
-                    @Override
-                    public void success(JSONObject item) throws JSONException {
-                        list=item.getJSONArray("items");
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                ((android.view.ViewGroup)progressBar.getParent()).removeView(progressBar);
-                                try {
-                                    load_solution();
-                                } catch (JSONException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        });
-
-                    }
-                    @Override
-                    public void fail(IOException e) {
-
-                    }
-                }
-            );
+                this
+        );
     }
     private void load_solution() throws JSONException {
         branch_solution.removeAllViews();
@@ -66,5 +46,21 @@ public class shop_branch extends AppCompatActivity {
             if(++i<list.length())
                 branch_solution.addView(layoutInflater.inflate(R.layout.shop_branch_underline, null));
         }
+    }
+    @Override
+    public void success(JSONObject item) throws JSONException {
+        list = item.getJSONArray("items");
+        runOnUiThread(() -> {
+            ((android.view.ViewGroup)progressBar.getParent()).removeView(progressBar);
+            try {
+                load_solution();
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    public void fail(IOException e) {
     }
 }

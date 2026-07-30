@@ -90,15 +90,15 @@ public class edit_today_detail extends Activity {
         LayoutInflater layoutInflater = LayoutInflater.from(this);
         for (kcal_sport s:kcal_sports.sport_list()) {
             View cell = layoutInflater.inflate(R.layout.edit_kcal_type_item, null);
-            cell.setTag(s.type);
+            cell.setTag(s.sportType.ordinal());
             TextView type = cell.findViewById(R.id.type);
-            type.setText(s.name);
+            type.setText(s.sportType.displayName);
             ImageView icon = cell.findViewById(R.id.icon);
-            icon.setImageDrawable(getResources().getDrawable(s.icon_resource_id));
+            icon.setImageDrawable(getResources().getDrawable(s.sportType.iconResId));
             ImageViewCompat.setImageTintList(icon, ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white)));
             type_table.addView(cell);
             cells.add(cell);
-            cell_select(cell, s.type == sport.type);
+            cell_select(cell, s.sportType == sport.sportType);
             cell.setOnClickListener(new View.OnClickListener() {
                 
                 public void onClick(View v) {
@@ -112,7 +112,7 @@ public class edit_today_detail extends Activity {
         cell.setAlpha(selected?1:(float)0.4);
         if(selected){
             if(is_request_input) food.type = (short)cell.getTag();
-            else sport.type= (short)cell.getTag();
+            else sport.sportType = kcal_sport.SportType.fromOrdinal((int)cell.getTag());
         }
     }
     public void onWindowFocusChanged(boolean hasFocus) {
@@ -120,7 +120,7 @@ public class edit_today_detail extends Activity {
         ObjectAnimator objectAnimator = ObjectAnimator.ofInt(
                             findViewById(R.id.scrollView),
                             "scrollX",
-                            0,(int)cells.get(is_request_input ? food.type : sport.type).getX()-50)
+                            0,(int)cells.get(is_request_input ? food.type : sport.sportType.ordinal()).getX()-50)
                             .setDuration(300);
         objectAnimator.start();
     }

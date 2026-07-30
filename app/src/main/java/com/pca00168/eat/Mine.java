@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.Window;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.TextView;
 import com.squareup.picasso.Picasso;
 import java.util.ArrayList;
@@ -36,57 +37,49 @@ public class Mine extends AppCompatActivity {
         table_list.removeAllViews();
         ArrayList<ArrayList> table_list_arr = new ArrayList();//{名稱,圖片檔名,資訊(true false為開關),點擊事件,接下來要不要分隔線(不要的話填null，要的話什麼都不要填)}
         table_list_arr.add(new ArrayList<>(Arrays.asList("基本設定", null, "section",null)));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("音效", "icon_sound", "true",(new View.OnClickListener() {
-            public void onClick(View v) {
 
-            }
-        }))));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("背景音樂", "icon_background_music", "true",(new View.OnClickListener() {
-            public void onClick(View v) {
+        String mode_init = public_func.readData(Mine.this, "google_fit_sync_mode");
+        boolean isSyncOn = mode_init.isEmpty() || mode_init.equals("1");
+        table_list_arr.add(new ArrayList<>(Arrays.asList("顯示Google Fit運動資料", "icon_google_fit", isSyncOn ? "true" : "false", (View.OnClickListener) v -> {
+            boolean currentSyncOn = public_func.readData(Mine.this, "google_fit_sync_mode").equals("1");
+            public_func.writeData(Mine.this, "google_fit_sync_mode", currentSyncOn ? "0" : "1");
+            Switch switchView = v.findViewById(R.id.onoff);
+            if (switchView != null) switchView.setChecked(!currentSyncOn);
+        })));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("音效", "icon_sound", "true", (View.OnClickListener) v -> {
 
+        })));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("背景音樂", "icon_background_music", "true",(View.OnClickListener) v -> {
 
-            }
-        }))));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("通知", "icon_notification", "true",(new View.OnClickListener() {
-            public void onClick(View v) {
+        })));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("通知", "icon_notification", "true",(View.OnClickListener) v -> {
 
-
-            }
-        }))));
+        })));
         table_list_arr.add(new ArrayList<>(Arrays.asList("語言", "icon_language", "繁體中文",null)));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("用戶設定", "icon_user_settings", "",(new View.OnClickListener() {
-            public void onClick(View v) {
-                startActivity(new Intent(Mine.this, user_settings.class));
-            }
-        }),null)));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("用戶設定", "icon_user_settings", "", (View.OnClickListener) v -> {
+            startActivity(new Intent(Mine.this, user_settings.class));
+        },null)));
         table_list_arr.add(new ArrayList<>(Arrays.asList("數值設定", null, "section",null)));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("每日基礎代謝", "icon_apple", public_func.readDataInt(this, "dailyBMR") +"kcal",(new View.OnClickListener() {
-            public void onClick(View v) {
-                Intent intent = new Intent(Mine.this, edit_daily_kcal.class);
-                intent.putExtra("request_input",true);
-                startActivity(intent);
-            }
-        }))));
-        table_list_arr.add(new ArrayList<>(Arrays.asList("每日運動目標", "icon_dumbbell", public_func.readDataInt(this, "dailySTK") +"kcal",(new View.OnClickListener() {
-            public void onClick(View v) {
-                Intent intent = new Intent(Mine.this, edit_daily_kcal.class);
-                intent.putExtra("request_input",false);
-                startActivity(intent);
-            }
-        }))));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("每日基礎代謝", "icon_apple", public_func.readDataInt(this, "dailyBMR") +"kcal", (View.OnClickListener) v -> {
+            Intent intent = new Intent(Mine.this, edit_daily_kcal.class);
+            intent.putExtra("request_input",true);
+            startActivity(intent);
+        })));
+        table_list_arr.add(new ArrayList<>(Arrays.asList("每日運動目標", "icon_dumbbell", public_func.readDataInt(this, "dailySTK") +"kcal",(View.OnClickListener) v -> {
+            Intent intent = new Intent(Mine.this, edit_daily_kcal.class);
+            intent.putExtra("request_input",false);
+            startActivity(intent);
+        })));
         table_list_arr.add(new ArrayList<>(Arrays.asList("睡眠時程", "icon_bed",
                 String.format("%02d:%02d~%02d:%02d",
                         public_func.readDataInt(this, "dailySleepH"),
                         public_func.readDataInt(this, "dailySleepM"),
                         public_func.readDataInt(this, "dailyWakeH"),
                         public_func.readDataInt(this, "dailyWakeM")
-                        ),
-                (new View.OnClickListener() {
-            public void onClick(View v) {
-                Intent intent = new Intent(Mine.this, edit_daily_sleep_time.class);
-                startActivity(intent);
-            }
-        }))));
+                        ), (View.OnClickListener) v -> {
+                    Intent intent = new Intent(Mine.this, edit_daily_sleep_time.class);
+                    startActivity(intent);
+                })));
 /*
         table_list_arr.add(new String[]{"音效", "icon_sound", "true"});
         table_list_arr.add(new String[]{"背景音樂", "icon_background_music", "true"});
@@ -105,6 +98,11 @@ public class Mine extends AppCompatActivity {
             switch ((String)table_item.get(2)){
                 case "true": case "false":
                     view = layoutInflater.inflate(R.layout.mine_table_cell_switch, null);
+                    Switch onoff = view.findViewById(R.id.onoff);
+                    if (onoff != null) {
+                        onoff.setChecked("true".equals(table_item.get(2)));
+                        onoff.setClickable(false); // 讓點擊事件交由整行 View 處理
+                    }
                     break;
                 case "section":
                     view = layoutInflater.inflate(R.layout.mine_table_section, null);

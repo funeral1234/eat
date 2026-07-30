@@ -9,6 +9,8 @@ import android.view.animation.TranslateAnimation;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.constraintlayout.widget.ConstraintLayout;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -26,7 +28,7 @@ public class today_detail extends Activity {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         StatusBarUtils.setWindowStatusBarColor(this, R.color.dialog_transparent);
-        setContentView(R.layout.today_detial);
+        setContentView(R.layout.today_detail);
         is_request_input=getIntent().getBooleanExtra("request_input",true);
 
         if(is_request_input) load_input_data();
@@ -37,7 +39,7 @@ public class today_detail extends Activity {
         io_kcal_today_table.removeAllViews();
         cells.clear();
         for(kcal_food food :User.load_kcal_input(this,-1,public_func.timestamp_today(),public_func.timestamp_now())){
-            View cell = LayoutInflater.from(this).inflate(R.layout.today_detial_table_cell, null);
+            View cell = LayoutInflater.from(this).inflate(R.layout.today_detail_table_cell, null);
             cell.setTag(false);
             ((TextView)cell.findViewById(R.id.type)).setText(kcal_foods.foodtype2string(food.type));
             ((ImageView)cell.findViewById(R.id.type_icon)).setImageDrawable(getResources().getDrawable(kcal_foods.foodtype2icon_resource_id(food.type)));
@@ -62,21 +64,13 @@ public class today_detail extends Activity {
         io_kcal_today_table.removeAllViews();
         cells.clear();
         for(kcal_sport sport :User.load_kcal_output(this,-1,public_func.timestamp_today(),public_func.timestamp_now())){
-            View cell = LayoutInflater.from(this).inflate(R.layout.today_detial_table_cell, null);
+            View cell = LayoutInflater.from(this).inflate(R.layout.today_detail_table_cell, null);
             cell.setTag(false);
-            ((TextView)cell.findViewById(R.id.type)).setText(sport.name);
-            ((ImageView)cell.findViewById(R.id.type_icon)).setImageDrawable(getResources().getDrawable(sport.icon_resource_id));
+            ((TextView)cell.findViewById(R.id.type)).setText(sport.sportType.displayName);
+            ((ImageView)cell.findViewById(R.id.type_icon)).setImageDrawable(getResources().getDrawable(sport.sportType.iconResId));
             ((TextView)cell.findViewById(R.id.kcal_value)).setText(String.valueOf(sport.kcal));
-            cell.findViewById(R.id.edit_btn).setOnClickListener(new View.OnClickListener(){
-                public void onClick(View v) {
-                    edit_onClick(cell,sport);
-                }
-            });
-            cell.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    cell_onClick(v);
-                }
-            });
+            cell.findViewById(R.id.edit_btn).setOnClickListener(v -> edit_onClick(cell, sport));
+            cell.setOnClickListener(v -> cell_onClick(v));
             io_kcal_today_table.addView(cell);
             cells.add(cell);
         }
@@ -103,6 +97,13 @@ public class today_detail extends Activity {
     }
     private void edit_onClick(View cell, Serializable data){
         change_edit_mode(cell);
+        if (!is_request_input && data instanceof kcal_sport) {
+            kcal_sport sportData = (kcal_sport) data;
+            if (sportData.is_fit) {
+                Toast.makeText(this, "此為 Google Fit 自動同步紀錄，請至 Google Fit 修改", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
         Intent intent = new Intent(cell.getContext(), edit_today_detail.class);
         intent.putExtra("request_input",is_request_input);
         intent.putExtra("data",data);

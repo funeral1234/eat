@@ -28,16 +28,19 @@ public class HomeFragment extends Fragment {
         HomeViewModel homeViewModel =  new ViewModelProvider(this, new ViewModelProvider.NewInstanceFactory()).get(HomeViewModel.class);
         root = FragmentHomeBinding.inflate(inflater, container, false).getRoot();
         Button confirm_add_btn = (Button)root.findViewById(R.id.confirm_add_btn);
-
-
+        confirm_add_btn.setEnabled(false);
         confirm_add_btn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 //check_field_empty();
-                if(confirm_add_btn.isClickable()){
-                    sport.time=public_func.timestamp_now();
-                    sport.kcal=Integer.parseInt(input_kcal.getText().toString());
-                    User.add_kcal_output(getActivity(),sport);
-                    getActivity().onBackPressed();
+                if(confirm_add_btn.isEnabled()){
+                    try {
+                        sport.time = public_func.timestamp_now();
+                        sport.kcal = Integer.parseInt(input_kcal.getText().toString());
+                        User.add_kcal_output(getActivity(), sport, true);
+                        getActivity().onBackPressed();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         });
@@ -47,9 +50,9 @@ public class HomeFragment extends Fragment {
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {   }
             
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                boolean clickable = count>0 && sport!=null;
+                boolean clickable = s.length()>0 && sport!=null;
                 confirm_add_btn.setBackground(getResources().getDrawable(clickable ? R.drawable.conform_add_orange : R.drawable.conform_add_gray));
-                confirm_add_btn.setClickable(clickable);
+                confirm_add_btn.setEnabled(clickable);
             }
             
             public void afterTextChanged(Editable editable) {  }
@@ -58,17 +61,17 @@ public class HomeFragment extends Fragment {
         return root;
     }
 
-    private  void load_sport_list(){
+    private void load_sport_list(){
         LinearLayout sport_list = (LinearLayout) root.findViewById(R.id.sport_list);
         for (kcal_sport sport_item: kcal_sports.sport_list()) {
             LayoutInflater layoutInflater = LayoutInflater.from(getContext());
             View view = layoutInflater.inflate(R.layout.sport_item, null);
             TextView text = (TextView)view.findViewById(R.id.sport_item_text);
-            text.setText(sport_item.name);
-            if(sport_item.name.length()>5) {
+            text.setText(sport_item.sportType.displayName);
+            if(sport_item.sportType.displayName.length()>5) {
                 text.setTextSize(24);
             }
-            ((ImageView)view.findViewById(R.id.sport_item_image)).setImageDrawable(getResources().getDrawable(sport_item.icon_resource_id));
+            ((ImageView)view.findViewById(R.id.sport_item_image)).setImageDrawable(getResources().getDrawable(sport_item.sportType.iconResId));
             view.setOnClickListener(new View.OnClickListener() {
                 
                 public void onClick(View v) {

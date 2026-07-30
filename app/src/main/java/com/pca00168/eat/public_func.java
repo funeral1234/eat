@@ -153,5 +153,34 @@ public class public_func {
         });
         builder.create().show();
     }
-
+    
+    public interface dialogResultIntCallBack {
+        void OK(int index);
+        void Cancel();
+    }
+    
+    public static void SingleChoice_Dialog(Context context, String title, String[] items, int checkedItem, dialogResultIntCallBack Done) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(title);
+        final int[] selected = {checkedItem};
+        builder.setSingleChoiceItems(items, checkedItem, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                selected[0] = which;
+            }
+        });
+        builder.setPositiveButton("確定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Done.OK(selected[0]);
+            }
+        });
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Done.Cancel();
+            }
+        });
+        builder.create().show();
+    }
 }

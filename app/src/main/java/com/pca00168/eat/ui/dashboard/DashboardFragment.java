@@ -31,6 +31,7 @@ import com.pca00168.eat.R;
 import com.pca00168.eat.User;
 import com.pca00168.eat.databinding.FragmentDashboardBinding;
 import com.pca00168.eat.kcal_sport;
+import com.pca00168.eat.kcal_sports;
 import com.pca00168.eat.public_func;
 import com.pca00168.eat.today_detail;
 import com.qw.soul.permission.SoulPermission;
@@ -95,7 +96,10 @@ public class DashboardFragment extends Fragment {
         return root;
     }
     private void readFitnessData() {
-        FitnessOptions fitnessOptions = FitnessOptions.builder().addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ).build();
+        FitnessOptions fitnessOptions = FitnessOptions.builder()
+                .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_CALORIES_EXPENDED, FitnessOptions.ACCESS_READ)
+                .build();
         if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(getActivity()), fitnessOptions)) {
             GoogleSignIn.requestPermissions(
                     this,
@@ -106,8 +110,7 @@ public class DashboardFragment extends Fragment {
         }
         long startTime = public_func.timestamp_today();
         long endTime = public_func.timestamp_now();
-        // 使用 estimated_steps 資料來源（與 Google Fit App 及 Pikmin Bloom 一致的來源）
-        // 若用原始 TYPE_STEP_COUNT_DELTA aggregate 會遭漏算法處理後的預估步數
+        // 使用 estimated_steps 資料來源（與 Google Fit App 顯示一致）
         DataSource estimatedStepsDataSource = new DataSource.Builder()
                 .setAppPackageName("com.google.android.gms")
                 .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
@@ -137,12 +140,12 @@ public class DashboardFragment extends Fragment {
                         }
                         final int finalSteps = steps;
                         User.edit_google_fit_step_num(getActivity(), finalSteps, startTime);
-                        getActivity().runOnUiThread(new Runnable() {
-                            public void run() {
-                                TextView step_value = root.findViewById(R.id.step_value);
-                                step_value.setText(String.valueOf(finalSteps));
-                            }
+                        getActivity().runOnUiThread(() -> {
+                            TextView step_value = root.findViewById(R.id.step_value);
+                            step_value.setText(String.valueOf(finalSteps));
                         });
+                        // 步數讀完後，接著讀取各項運動消耗卡路里
+                        readFitnessCalories();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -151,6 +154,80 @@ public class DashboardFragment extends Fragment {
                     }
                 });
     }
+
+
+    /** 從 Google Fit 讀取今日各項運動，分別寫入對應的運動類型 */
+    private void readFitnessCalories() {
+        long startTime = public_func.timestamp_today();
+        long endTime = public_func.timestamp_now();
+        DataReadRequest readRequest = new DataReadRequest.Builder()
+                .aggregate(DataType.TYPE_CALORIES_EXPENDED, DataType.AGGREGATE_CALORIES_EXPENDED)
+                .bucketByActivitySegment(1, TimeUnit.MINUTES)
+                .setTimeRange(startTime, endTime, TimeUnit.SECONDS)
+                .build();
+        Fitness.getHistoryClient(getActivity(), GoogleSignIn.getLastSignedInAccount(getActivity()))
+                .readData(readRequest)
+                .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
+                    public void onSuccess(DataReadResponse dataReadResponse) {
+                        kcal_sports existing = User.load_kcal_output(getActivity(), -1, startTime, endTime);
+                        java.util.HashSet<Long> existingTimes = new java.util.HashSet<>();
+                        for (kcal_sport sport : existing) {
+                            existingTimes.add(sport.time);
+                        }
+
+                        boolean hasData = false;
+                        int totalNewKcal = 0;
+                        for (Bucket bucket : dataReadResponse.getBuckets()) {
+                            String activity = bucket.getActivity();
+                            // 跳過靜止和未知
+                            if ("still".equals(activity) || "unknown".equals(activity)
+                                    || "tilting".equals(activity) || "in_vehicle".equals(activity))
+                                continue;
+
+                            long fitTime = bucket.getStartTime(TimeUnit.SECONDS);
+                            if (existingTimes.contains(fitTime)) {
+                                continue; // 已存在：不再重複插入（舊版是一律刪除重插，現在改為保留使用者的修改）
+                            }
+
+                            int kcal = 0;
+                            for (DataSet dataSet : bucket.getDataSets()) {
+                                for (DataPoint dp : dataSet.getDataPoints()) {
+                                    for (Field field : dp.getDataType().getFields()) {
+                                        if (field.equals(Field.FIELD_CALORIES)) {
+                                            kcal += (int) dp.getValue(field).asFloat();
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (kcal <= 0) continue;
+                            kcal_sport sport = new kcal_sport(
+                                    kcal_sport.SportType.fromGoogleFitActivity(activity),
+                                    kcal,
+                                    fitTime); 
+                            sport.is_fit = true;
+                            User.add_kcal_output(getActivity(), sport, false);
+                            totalNewKcal += kcal;
+                            hasData = true;
+                        }
+
+                        if (hasData && getActivity() != null) {
+                            if (totalNewKcal > 0) {
+                                String currentDelta = public_func.readData(getActivity(), "delta_kcal");
+                                int current = currentDelta.isEmpty() ? 0 : Integer.parseInt(currentDelta);
+                                public_func.writeData(getActivity(), "delta_kcal", String.valueOf(current - totalNewKcal));
+                            }
+                            getActivity().runOnUiThread(() -> load_data());
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    public void onFailure(@NonNull Exception e) {
+                        //err(e.getMessage());
+                    }
+                });
+    }
+
 
     public void onDestroyView() {
         super.onDestroyView();
@@ -221,6 +298,12 @@ public class DashboardFragment extends Fragment {
         );
         TextView step_value=root.findViewById(R.id.step_value);
         step_value.setText(String.valueOf(User.load_google_fit_step_num(getActivity(),public_func.timestamp_today())));
+        
+        ConstraintLayout step_layout = root.findViewById(R.id.step_layout);
+        if (step_layout != null) {
+            String mode_str = public_func.readData(getActivity(), "google_fit_sync_mode");
+            step_layout.setVisibility(mode_str.equals("0") ? View.GONE : View.VISIBLE);
+        }
         ConstraintLayout layout=root.findViewById(R.id.kcal_toast_view);
         String delta_kcal=public_func.readData(getActivity(),"delta_kcal");
         if(!delta_kcal.isEmpty()){
@@ -240,15 +323,12 @@ public class DashboardFragment extends Fragment {
                 }
             });
             layout.setVisibility(View.VISIBLE);
-            layout.animate().alpha(1).setDuration(2000).withEndAction(new Runnable() {
-                    public void run() {
-                        layout.animate().alpha(0).setDuration(1000).withEndAction(new Runnable() {
-                            public void run() {
-                                layout.setVisibility(View.INVISIBLE);
-                            }
-                        });
-                }
-            });
+            layout.animate().alpha(1).setDuration(2000).withEndAction(() -> {
+                        layout.animate().alpha(0).setDuration(1000).withEndAction(() -> {
+                                layout.setVisibility(View.GONE);
+                                layout.setAlpha(1);
+                        }).start();
+            }).start();
         }
     }
 

@@ -5,7 +5,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import androidx.annotation.Nullable;
 public class SqlDataBaseHelper extends SQLiteOpenHelper {
     public SqlDataBaseHelper(@Nullable Context context) {
-        super(context, "kcal.db", null, 1);
+        super(context, "kcal.db", null, 2);
     }
     
     public void onCreate(SQLiteDatabase db) {
@@ -21,7 +21,8 @@ public class SqlDataBaseHelper extends SQLiteOpenHelper {
                 "_id INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "time INTEGER not null," +
                 "sporttype INTEGER not null," +
-                "kcal INTEGER not null" +
+                "kcal INTEGER not null," +
+                "is_fit INTEGER DEFAULT 0" +
                 ")"
         );
         db.execSQL( "CREATE TABLE IF NOT EXISTS google_fit_step (" +
@@ -33,8 +34,10 @@ public class SqlDataBaseHelper extends SQLiteOpenHelper {
     }
     
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE input_kcal");
-        db.execSQL("DROP TABLE output_kcal");
-        db.execSQL("DROP TABLE google_fit_step");
+        if (oldVersion < 2) {
+            try {
+                db.execSQL("ALTER TABLE output_kcal ADD COLUMN is_fit INTEGER DEFAULT 0");
+            } catch (Exception e) {}
+        }
     }
 }

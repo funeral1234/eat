@@ -24,16 +24,19 @@ public class User {
         s.close();
         public_func.writeData(context,"delta_kcal", String.valueOf(food.kcal));
     }
-    public static void add_kcal_output(Context context, kcal_sport sport){
+    public static void add_kcal_output(Context context, kcal_sport sport, boolean show_popup){
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
         SQLiteDatabase s = db.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("time",sport.time);
-        values.put("sporttype", sport.type);
+        values.put("sporttype", sport.sportType.ordinal());
         values.put("kcal", sport.kcal);
+        values.put("is_fit", sport.is_fit ? 1 : 0);
         s.insert("output_kcal", null, values);
         s.close();
-        public_func.writeData(context,"delta_kcal", String.valueOf(-sport.kcal));
+        if (show_popup) {
+            public_func.writeData(context,"delta_kcal", String.valueOf(-sport.kcal));
+        }
     }
     public static void delete_kcal_data(Context context, boolean is_input,long timestamp){
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
@@ -53,7 +56,7 @@ public class User {
     }
     public static void edit_kcal_output(Context context, kcal_sport sport){
         ContentValues values = new ContentValues();
-        values.put("sporttype", sport.type);
+        values.put("sporttype", sport.sportType.ordinal());
         values.put("kcal", sport.kcal);
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
         SQLiteDatabase s = db.getWritableDatabase();
@@ -82,7 +85,7 @@ public class User {
                  null,        // The values for the WHERE clause
                 null,                   // don't group the rows
                 null,                   // don't filter by row groups
-                null               // The sort order
+                "time ASC"              // The sort order
         );
         kcal_foods items = new kcal_foods();
         while(cursor.moveToNext()) {
@@ -99,31 +102,40 @@ public class User {
     public static kcal_sports load_kcal_output(Context context,int sport_type,long from_timestamp,long to_timestamp){//-1:全部
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
         SQLiteDatabase s = db.getReadableDatabase();
+
+        boolean hideFit = public_func.readData(context, "google_fit_sync_mode").equals("0");
+        
         Cursor cursor = s.query(
                 "output_kcal",   // The table to query
                 null,             // The array of columns to return (pass null to get all)
-                String.format("%s time >= %d AND time <= %d",
-                        sport_type == -1 ? "" : String.format( "sporttype=%d AND",sport_type),
+                String.format("%s time >= %d AND time <= %d%s",
+                        sport_type == -1 ? "" : String.format("sporttype=%d AND ", sport_type),
                         from_timestamp,
-                        to_timestamp),  // The columns for the WHERE clause
+                        to_timestamp,
+                        hideFit ? " AND (is_fit = 0 OR is_fit IS NULL)" : ""),  // The columns for the WHERE clause
                 null,        // The values for the WHERE clause
                 null,                   // don't group the rows
                 null,                   // don't filter by row groups
-                null               // The sort order
+                "time ASC"              // The sort order
         );
         kcal_sports items = new kcal_sports();
         while(cursor.moveToNext()) {
             // 不直接修改靜態 sport_list() 原型，複製出新物件再賦值
-            kcal_sport template = kcal_sports.sport_list().get(cursor.getShort(cursor.getColumnIndexOrThrow("sporttype")));
-            kcal_sport item = new kcal_sport(template.type, template.kcal, template.name, template.icon_resource_id);
+            kcal_sport.SportType st = kcal_sport.SportType.fromOrdinal(cursor.getShort(cursor.getColumnIndexOrThrow("sporttype")));
+            kcal_sport item = new kcal_sport(st, cursor.getInt(cursor.getColumnIndexOrThrow("kcal")));
             item.time=cursor.getInt(cursor.getColumnIndexOrThrow("time"));
-            item.kcal = cursor.getInt(cursor.getColumnIndexOrThrow("kcal"));
+            int isFitCol = cursor.getColumnIndex("is_fit");
+            if (isFitCol != -1) {
+                item.is_fit = cursor.getInt(isFitCol) == 1;
+            }
             items.add(item);
         }
         cursor.close();
         return items;
     }
     public static int load_google_fit_step_num(Context context,long today_timestamp){
+        if (public_func.readData(context, "google_fit_sync_mode").equals("0")) return 0; // 隱藏步數
+
         SqlDataBaseHelper db=new SqlDataBaseHelper(context);
         SQLiteDatabase s = db.getWritableDatabase();
         Cursor cursor = s.query(

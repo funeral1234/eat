@@ -67,7 +67,7 @@
             android:layout_height="40sp"
             android:layout_marginBottom="4sp"
             android:background="@drawable/border_white"
-            android:onClick="input_today_detial_click">
+            android:onClick="input_today_detail_click">
 
             <ImageView
                 android:id="@+id/apple_icon"
@@ -126,7 +126,7 @@
             android:layout_height="40sp"
             android:layout_marginBottom="4sp"
             android:background="@drawable/border_white"
-            android:onClick="output_today_detial_click">
+            android:onClick="output_today_detail_click">
 
             <ImageView
                 android:id="@+id/dumbbel_icon"
@@ -241,6 +241,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/step_layout"
             android:layout_width="match_parent"
             android:layout_height="40sp"
             android:background="@drawable/border_white"

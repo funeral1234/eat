@@ -51,8 +51,8 @@ public class weekly_report extends AppCompatActivity {
             LayoutInflater layoutInflater = LayoutInflater.from(this);
             View cell = layoutInflater.inflate(R.layout.weekly_report_table_cell, null);
             ((TextView)cell.findViewById(R.id.count)).setText("次");
-            ((TextView)cell.findViewById(R.id.type)).setText(sports.get(0).name);
-            ((ImageView)cell.findViewById(R.id.type_icon)).setImageDrawable(getResources().getDrawable(sports.get(0).icon_resource_id));
+            ((TextView)cell.findViewById(R.id.type)).setText(sports.get(0).sportType.displayName);
+            ((ImageView)cell.findViewById(R.id.type_icon)).setImageDrawable(getResources().getDrawable(sports.get(0).sportType.iconResId));
             ((TextView)cell.findViewById(R.id.count_value)).setText(String.valueOf(sports.size()));
             ((TextView)cell.findViewById(R.id.kcal_value)).setText(String.valueOf(sports.total_kcal()));
             cell.setOnClickListener(new View.OnClickListener() {
