@@ -65,6 +65,14 @@ public class DashboardFragment extends Fragment {
         rise_up=public_func.readDataInt(getActivity(),"rise_up_minute");
         sunset=public_func.readDataInt(getActivity(),"sunset_minute");
         bg=root.findViewById(R.id.bg);
+        bg.setOnClickListener(v -> {
+            String astroJson = public_func.readData(getActivity(), "astro_json");
+            if (astroJson == null || astroJson.isEmpty()) {
+                android.widget.Toast.makeText(getActivity(), "尚無天文資料，請稍後再試或檢查定位權限", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showAstroReport(astroJson);
+        });
         ConstraintLayout layout=root.findViewById(R.id.kcal_toast_view);
         layout.setVisibility(View.INVISIBLE);
 
@@ -275,6 +283,7 @@ public class DashboardFragment extends Fragment {
                         public void success(org.json.JSONObject item) throws org.json.JSONException {
                             try {
                                 org.json.JSONObject results = item.getJSONObject("results");
+                                public_func.writeData(getActivity(), "astro_json", results.toString());
                                 String sunriseIso = results.getString("sunrise").replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
                                 String sunsetIso = results.getString("sunset").replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
                                 java.text.SimpleDateFormat isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", java.util.Locale.US);
@@ -375,7 +384,58 @@ public class DashboardFragment extends Fragment {
 
 
 
+    private String formatAstroTime(org.json.JSONObject results, String key, java.text.SimpleDateFormat isoFormat, java.text.SimpleDateFormat timeFormat) {
+        try {
+            String raw = results.getString(key).replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
+            return timeFormat.format(isoFormat.parse(raw));
+        } catch (Exception e) {
+            return "--:--:--";
+        }
+    }
 
-
-
+    private void showAstroReport(String jsonStr) {
+        if (getActivity() == null) return;
+        try {
+            org.json.JSONObject results = new org.json.JSONObject(jsonStr);
+            java.text.SimpleDateFormat isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", java.util.Locale.US);
+            java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US);
+            
+            String sunrise = formatAstroTime(results, "sunrise", isoFormat, timeFormat);
+            String sunset = formatAstroTime(results, "sunset", isoFormat, timeFormat);
+            String solarNoon = formatAstroTime(results, "solar_noon", isoFormat, timeFormat);
+            int dayLength = results.getInt("day_length");
+            int hours = dayLength / 3600;
+            int mins = (dayLength % 3600) / 60;
+            
+            String civilBegin = formatAstroTime(results, "civil_twilight_begin", isoFormat, timeFormat);
+            String civilEnd = formatAstroTime(results, "civil_twilight_end", isoFormat, timeFormat);
+            String nauticalBegin = formatAstroTime(results, "nautical_twilight_begin", isoFormat, timeFormat);
+            String nauticalEnd = formatAstroTime(results, "nautical_twilight_end", isoFormat, timeFormat);
+            String astroBegin = formatAstroTime(results, "astronomical_twilight_begin", isoFormat, timeFormat);
+            String astroEnd = formatAstroTime(results, "astronomical_twilight_end", isoFormat, timeFormat);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("1. 基本日照與時間資訊\n");
+            sb.append("日出與日落：當天太陽於早上 ").append(sunrise).append(" 升起，並於傍晚 ").append(sunset).append(" 落下。\n\n");
+            sb.append("日照長度：總日照時間為 ").append(dayLength).append(" 秒，換算約為 ").append(hours).append(" 小時 ").append(mins).append(" 分鐘。\n\n");
+            sb.append("正午：太陽到達天頂最高點的時間為 ").append(solarNoon).append("。\n\n");
+            
+            sb.append("2. 曙暮光階段 (Twilight Phases)\n");
+            sb.append("民用曙暮光：").append(civilBegin).append(" ~ ").append(civilEnd).append("\n");
+            sb.append("航海曙暮光：").append(nauticalBegin).append(" ~ ").append(nauticalEnd).append("\n");
+            sb.append("天文曙暮光：").append(astroBegin).append(" ~ ").append(astroEnd).append("\n\n");
+            
+            sb.append("備註：本報告未包含月相與精確方位角等需要額外之天文運算的數據。");
+            
+            new androidx.appcompat.app.AlertDialog.Builder(getActivity())
+                .setTitle("太陽與天文觀測報告")
+                .setMessage(sb.toString())
+                .setPositiveButton("確定", null)
+                .show();
+                
+        } catch (Exception e) {
+            e.printStackTrace();
+            android.widget.Toast.makeText(getActivity(), "解析天文資料失敗", android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
 }
