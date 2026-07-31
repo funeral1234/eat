@@ -233,7 +233,7 @@ public class DashboardFragment extends Fragment {
         super.onDestroyView();
         root = null;
     }
-    private void set_bg(){
+    public void set_bg(){
         boolean night=today_minute<rise_up||today_minute>sunset;
         bg.setImageDrawable(getResources().getDrawable(night?R.drawable.night_bg:R.drawable.morning_bg));
     }
@@ -242,39 +242,75 @@ public class DashboardFragment extends Fragment {
         today_minute=Calendar.getInstance().get(Calendar.HOUR_OF_DAY)*60+Calendar.getInstance().get(Calendar.MINUTE);
         set_bg();
         load_data();
-        /*
-        public_func.http_webapi(
-                "https://opendata.cwb.gov.tw/api/v1/rest/datastore/A-B0062-001", Headers.of(
-                        new String[]{"Authorization","CWB-F93BFC87-7315-4DB8-A6F8-028CFC6AA3C0",
-                                "format","JSON",
-                                "locationName","",
-                        "dataTime","2023-02-17"
-                        }
-                ),new public_func.WebAPICallback(){
+        
+        com.hjq.permissions.XXPermissions.with(this)
+                .permission(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                .request(new com.hjq.permissions.OnPermissionCallback() {
                     @Override
-                    public void success(JSONObject item) throws JSONException {
-                          JSONArray arr=item.getJSONObject("records").
-                                  getJSONObject("locations").getJSONArray("location").getJSONObject(0).
-                                  getJSONArray("time").getJSONObject(0).getJSONArray("parameter");
-                          for(int i=0;i<arr.length();i++){
-                              if(arr.getJSONObject(i).getString("parameterName").equals("日出時刻")){
-                                  String time = arr.getJSONObject(i).getString("parameterValue");
-                                  rise_up=Integer.parseInt(time.split(":")[0])*60+Integer.parseInt(time.split(":")[1]);
-                                  public_func.writeData(getActivity(),"rise_up_minute",rise_up);
-                              }
-                              if(arr.getJSONObject(i).getString("parameterName").equals("日沒時刻")){
-                                  String time = arr.getJSONObject(i).getString("parameterValue");
-                                  sunset=Integer.parseInt(time.split(":")[0])*60+Integer.parseInt(time.split(":")[1]);
-                                  public_func.writeData(getActivity(),"sunset_minute",sunset);
-                              }
-                          }
-                        set_bg();
+                    public void onGranted(java.util.List<String> permissions, boolean allGranted) {
+                        fetchSunriseSunset();
                     }
                     @Override
-                    public void fail(IOException e) {
+                    public void onDenied(java.util.List<String> permissions, boolean doNotAskAgain) {
+                        fetchSunriseSunset();
                     }
+                });
+    }
+
+    private void fetchSunriseSunset() {
+        try {
+            if (androidx.core.app.ActivityCompat.checkSelfPermission(getActivity(), android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                androidx.core.app.ActivityCompat.checkSelfPermission(getActivity(), android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                android.location.LocationManager locationManager = (android.location.LocationManager) getActivity().getSystemService(android.content.Context.LOCATION_SERVICE);
+                android.location.Location loc = null;
+                if (locationManager != null) {
+                    loc = locationManager.getLastKnownLocation(android.location.LocationManager.PASSIVE_PROVIDER);
+                    if (loc == null) loc = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);
+                    if (loc == null) loc = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER);
                 }
-        );*/
+                if (loc != null) {
+                    String url = "https://api.sunrise-sunset.org/json?lat=" + loc.getLatitude() + "&lng=" + loc.getLongitude() + "&formatted=0";
+                    public_func.http_webapi(url, new okhttp3.Headers.Builder().build(), new public_func.WebAPICallback() {
+                        @Override
+                        public void success(org.json.JSONObject item) throws org.json.JSONException {
+                            try {
+                                org.json.JSONObject results = item.getJSONObject("results");
+                                String sunriseIso = results.getString("sunrise").replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
+                                String sunsetIso = results.getString("sunset").replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
+                                java.text.SimpleDateFormat isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", java.util.Locale.US);
+                                java.util.Calendar cal = java.util.Calendar.getInstance();
+                                cal.setTime(isoFormat.parse(sunriseIso));
+                                int riseUpMinute = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE);
+                                cal.setTime(isoFormat.parse(sunsetIso));
+                                int sunsetMinute = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE);
+                                updateSunriseSunset(riseUpMinute, sunsetMinute);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                updateSunriseSunset(6 * 60, 18 * 60);
+                            }
+                        }
+                        @Override
+                        public void fail(java.io.IOException e) {
+                            updateSunriseSunset(6 * 60, 18 * 60);
+                        }
+                    });
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        updateSunriseSunset(6 * 60, 18 * 60);
+    }
+
+    private void updateSunriseSunset(int riseUpMinute, int sunsetMinute) {
+        rise_up = riseUpMinute;
+        sunset = sunsetMinute;
+        public_func.writeData(getActivity(), "rise_up_minute", rise_up);
+        public_func.writeData(getActivity(), "sunset_minute", sunset);
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> set_bg());
+        }
     }
 
     private void load_data(){

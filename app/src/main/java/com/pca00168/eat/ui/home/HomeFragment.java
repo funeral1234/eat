@@ -25,7 +25,7 @@ public class HomeFragment extends Fragment {
     private TextInputEditText input_kcal;
     private kcal_sport sport;
     public View onCreateView(@NonNull LayoutInflater inflater,ViewGroup container, Bundle savedInstanceState) {
-        HomeViewModel homeViewModel =  new ViewModelProvider(this, new ViewModelProvider.NewInstanceFactory()).get(HomeViewModel.class);
+        HomeViewModel homeViewModel = new ViewModelProvider(this, new ViewModelProvider.NewInstanceFactory()).get(HomeViewModel.class);
         root = FragmentHomeBinding.inflate(inflater, container, false).getRoot();
         Button confirm_add_btn = (Button)root.findViewById(R.id.confirm_add_btn);
         confirm_add_btn.setEnabled(false);
